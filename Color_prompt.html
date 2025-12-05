@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Color Picker Prompt — Click to Change Background</title>
+  <style>
+    :root{--fg:#111}
+    html,body{height:100%;margin:0;font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+    body{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:20px;padding:40px;transition:background-color .3s, color .3s}
+    .card{background:rgba(255,255,255,0.06);backdrop-filter:blur(6px);padding:24px;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,0.12);max-width:720px;text-align:center}
+    button{padding:10px 16px;border-radius:8px;border:0;cursor:pointer;font-size:16px}
+    .hint{opacity:.8;font-size:14px}
+    a.small{font-size:13px;color:inherit}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Change page color</h1>
+    <p class="hint">Click the button and enter a color name (e.g. <code>tomato</code>), hex (<code>#ff9900</code>), or an rgb/rgba value.</p>
+    <button id="pick">Pick a color</button>
+    <p style="margin-top:18px">Tip: try <code>lightblue</code>, <code>#f8b400</code>, or <code>rgb(20,200,150)</code>.</p>
+    <p class="hint"><a class="small" href="#" id="reset">Reset to default</a></p>
+  </div>
+
+  <script>
+    const btn = document.getElementById('pick');
+    const reset = document.getElementById('reset');
+
+    function parseRGB(str){
+      // expect "rgb(r, g, b)" or "rgba(r, g, b, a)"
+      const m = str.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+      if(!m) return null;
+      return [Number(m[1]), Number(m[2]), Number(m[3])];
+    }
+
+    function setContrastText(rgb){
+      // compute luminance and choose black/white text for legibility
+      const [r,g,b] = rgb;
+      // relative luminance formula
+      const Rs = r/255, Gs = g/255, Bs = b/255;
+      const a = [Rs,Gs,Bs].map(v => v <= 0.03928 ? v/12.92 : Math.pow((v+0.055)/1.055, 2.4));
+      const lum = 0.2126*a[0] + 0.7152*a[1] + 0.0722*a[2];
+      // return black for light backgrounds, white for dark backgrounds
+      return lum > 0.5 ? '#111' : '#fff';
+    }
+
+    function applyColor(input){
+      if(!input) return;
+      // try applying the color to body
+      const prev = document.body.style.backgroundColor;
+      document.body.style.backgroundColor = input;
+      // read computed value to check if browser accepted it
+      const computed = getComputedStyle(document.body).backgroundColor;
+      const rgb = parseRGB(computed);
+      if(!rgb){
+        // invalid color — revert and show error
+        document.body.style.backgroundColor = prev;
+        alert('"' + input + '" is not a valid color. Try a CSS color name, hex (#rrggbb), or rgb(...) value.');
+        return;
+      }
+      // set text color for contrast
+      const textColor = setContrastText(rgb);
+      document.body.style.color = textColor;
+      // also style buttons so they remain visible
+      document.querySelectorAll('button, a.small').forEach(el => {
+        el.style.color = textColor;
+        el.style.background = 'rgba(0,0,0,0.12)';
+        el.style.border = '1px solid rgba(255,255,255,0.06)';
+      });
+    }
+
+    btn.addEventListener('click', ()=>{
+      const answer = prompt('Enter a color name, hex code (e.g. #00ff88), or rgb(...) value:', 'lightblue');
+      if(answer === null) return; // user cancelled
+      applyColor(answer.trim());
+    });
+
+    reset.addEventListener('click', (e)=>{
+      e.preventDefault();
+      document.body.style.backgroundColor = '';
+      document.body.style.color = '';
+      document.querySelectorAll('button, a.small').forEach(el => { el.style.color = ''; el.style.background = ''; el.style.border = ''; });
+    });
+  </script>
+</body>
+</html>
